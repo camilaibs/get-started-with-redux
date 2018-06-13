@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Get Started With Redux</title>
+    <script src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.0/redux.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-redux/5.0.7/react-redux.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+        // reducers
+        function filter(state = 'ALL', action) {
+            switch (action.type) {
+                case 'SELECT_FILTER':
+                    return action.payload.filter
+                default:
+                    return state
+            }
+        }
+
+        function todos(state = [], action) {
+            switch (action.type) {
+                case 'ADD_TODO':
+                    const todo = {
+                        id: state.length + 1,
+                        text: action.payload.text,
+                        completed: false
+                    }
+                    return state.concat(todo)
+                case 'TOGGLE_TODO':
+                    return state.map(todo => (
+                            todo.id === action.payload.id ?
+                            Object.assign({}, todo, {completed: !todo.completed}) : 
+                            todo
+                        ))
+                default:
+                    return state
+            }
+        }
+
+        const reducer = Redux.combineReducers({ filter, todos })
+
+        // actions
+        function selectFilter(filter) {
+            return {
+                type: 'SELECT_FILTER',
+                payload: { filter }
+            }
+        }
+
+        function addTodo(text) {
+            return {
+                type: 'ADD_TODO',
+                payload: { text }
+            }
+        }
+
+        function toggleTodo(id) {
+            return {
+                type: 'TOGGLE_TODO',
+                payload: { id }
+            }
+        }
+        
+        // store
+        const store = Redux.createStore(reducer)
+
+        // presentional components
+        const Todo = ({ id, text, completed, onToggle }) => {
+            function handleClick(e) {
+                e.preventDefault()
+                onToggle(id)
+            }
+            
+            return (
+                <li style={{
+                    textDecoration: completed ? 'line-through' : 'none'
+                }}>
+                    <a onClick={handleClick}>{text}</a>
+                </li>
+            )
+        }
+
+        const Todos = ({ items, onToggle }) => {
+            return (
+                <ul>
+                    {items.map(todo => (
+                        <Todo 
+                            key={todo.id}
+                            id={todo.id}
+                            text={todo.text}
+                            completed={todo.completed}
+                            onToggle={onToggle}
+                        />
+                    ))}
+                </ul>
+            )
+        }
+
+        const Filter = ({ name, value, selected, onClick }) => {
+            const style = {
+                paddin: '0.3rem',
+                marginRight: '1rem',
+                borderBottom: selected ? '2px solid purple' : 'none'
+            }
+
+            return (
+                <a style={style} onClick={onClick.bind(this, value)}>
+                    {name}
+                </a>
+            )
+        }
+
+        const Filters = ({ selected, onSelect }) => {
+            const style = {
+                listStyle: 'none',
+                display: 'flex',
+                paddingLeft: '0'
+            }
+            
+            function handleClick (value, e) {
+                e.preventDefault()
+                if (value !== selected) {
+                    onSelect(value)
+                }
+            }
+            
+            return (
+                <nav>
+                    <ul style={style}>
+                        <li>
+                            <Filter 
+                                name="Todos" 
+                                value="ALL" 
+                                selected={'ALL' === selected}
+                                onClick={handleClick} 
+                            />
+                        </li>
+                        <li>
+                            <Filter 
+                                name="Completas" 
+                                value="COMPLETED" 
+                                selected={'COMPLETED' === selected}
+                                onClick={handleClick} 
+                            />
+                        </li>
+                        <li>
+                            <Filter 
+                                name="Não completas" 
+                                value="NOT_COMPLETED" 
+                                selected={'NOT_COMPLETED' === selected}
+                                onClick={handleClick} 
+                            />
+                        </li>
+                    </ul>
+                </nav>
+            )
+        }
+
+        // container component
+        class Page extends React.Component {
+            handleSubmit = e => {
+                e.preventDefault()
+                const text = e.target.elements[0].value
+                this.props.onAddTodo(text)
+                e.target.reset()
+            }
+
+            handleSelectFilter = filter => {
+                this.props.onSelectFilter(filter)
+            }
+
+            getTodosFiltered = () => {
+                switch(this.props.selectedFilter) {
+                    case 'COMPLETED':
+                        return this.props.todos.filter(todo => todo.completed)
+                    case 'NOT_COMPLETED':
+                        return this.props.todos.filter(todo => !todo.completed)
+                    default:
+                        return this.props.todos
+                }
+            }
+
+            render() {
+                return (
+                    <React.Fragment>
+                        <form onSubmit={this.handleSubmit}>
+                            <input type="text" />
+                            <button>+</button>
+                        </form>
+
+                        <Todos 
+                            items={this.getTodosFiltered()} 
+                            onToggle={this.props.onToggleTodo}
+                        />
+
+                        <Filters 
+                            selected={this.props.selectedFilter} 
+                            onSelect={this.handleSelectFilter} 
+                        />
+                    </React.Fragment>
+                )
+            }
+        }
+
+        const ConnectedPage = ReactRedux.connect(
+            state => ({
+                selectedFilter: state.filter,
+                todos: state.todos
+            }),
+            dispatch => ({
+                onSelectFilter: (filter) => {
+                    dispatch(selectFilter(filter))
+                },
+                onAddTodo: (text) => {
+                    dispatch(addTodo(text))
+                },
+                onToggleTodo: (id) => {
+                    dispatch(toggleTodo(id))
+                }
+            })
+        )(Page)
+
+        ReactDOM.render(
+            <ReactRedux.Provider store={store}>
+                <ConnectedPage />
+            </ReactRedux.Provider>,
+            document.getElementById('root')
+        );
+    </script>
+  </body>
+</html>
